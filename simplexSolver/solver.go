@@ -1,62 +1,36 @@
 package simplexsolver
 
 // constraints always have the implicit inequality that all variables are positive
-type Solver struct {
+type SimplexSolver struct {
 	constraints       []Equation         // constraint equations
 	objectiveFunction map[string]float64 // the polynomia to maximize
 }
 
-func (s Solver) GetConstraints() []Equation {
+func (s SimplexSolver) GetConstraints() []Equation {
 	return s.constraints
 }
 
-func (s Solver) GetObjectiveFunction() map[string]float64 {
+func (s SimplexSolver) GetObjectiveFunction() map[string]float64 {
 	return s.objectiveFunction
 }
 
-func (s *Solver) AddConstraint(eq Equation) {
+func (s *SimplexSolver) AddConstraint(eq Equation) {
 	s.constraints = append(s.constraints, eq)
 }
 
-func (s *Solver) GetSolution() (float64, map[string]float64) {
+func (s *SimplexSolver) GetSolution() (float64, map[string]float64) {
 
 	tableu := [][]float64{}
 	variablePositionMap := map[string]int{}
-	varLenCount := 0
+
 	rhs := []float64{}
 
 	// add all base variables to the tableu
-	for _, eq := range s.constraints {
-		row := make([]float64, varLenCount)
-		for k, v := range eq.lhs {
-			if pos, ok := variablePositionMap[k]; ok {
-				row[pos] = v
-			} else {
-				variablePositionMap[k] = varLenCount
-				row = append(row, v)
-				varLenCount++
-
-			}
-		}
-		tableu = append(tableu, row)
-		rhs = append(rhs, eq.rhs)
-	}
+	tableu, rhs = s.GetBasicTableu(variablePositionMap, tableu, rhs)
 
 	// add all slack variables to the tableu
-	for i, eq := range s.constraints {
-		if eq.inequality == GTE {
-			for j := 0; j < len(s.constraints); j++ {
-				if i == j {
-					tableu[j] = append(tableu[j], 1)
-
-				} else {
-					tableu[j] = append(tableu[j], 0)
-				}
-			}
-		} else {
-			//TODO: add handling for other constraints types
-		}
-	}
+	//TODO: add handling for other constraints types
+	s.AddSlackVariablesToTableu(tableu)
 
 	objectiveRow := make([]float64, len(tableu[0]))
 
@@ -75,6 +49,43 @@ func (s *Solver) GetSolution() (float64, map[string]float64) {
 	}
 
 	return maxVal, retMap
+}
+
+func (s *SimplexSolver) AddSlackVariablesToTableu(tableu [][]float64) {
+	for i, eq := range s.constraints {
+		if eq.comparator == GTE {
+			for j := 0; j < len(s.constraints); j++ {
+				if i == j {
+					tableu[j] = append(tableu[j], 1)
+
+				} else {
+					tableu[j] = append(tableu[j], 0)
+				}
+			}
+		} else {
+
+		}
+	}
+}
+
+func (s *SimplexSolver) GetBasicTableu(variablePositionMap map[string]int, tableu [][]float64, rhs []float64) ([][]float64, []float64) {
+	varLenCount := 0
+	for _, eq := range s.constraints {
+		row := make([]float64, varLenCount)
+		for k, v := range eq.lhs {
+			if pos, ok := variablePositionMap[k]; ok {
+				row[pos] = v
+			} else {
+				variablePositionMap[k] = varLenCount
+				row = append(row, v)
+				varLenCount++
+
+			}
+		}
+		tableu = append(tableu, row)
+		rhs = append(rhs, eq.rhs)
+	}
+	return tableu, rhs
 }
 
 func loopForSolution(tableu [][]float64, rhs []float64, objectiveRow []float64, objectiveRhs float64) (float64, []float64) {
