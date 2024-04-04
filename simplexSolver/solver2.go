@@ -25,39 +25,62 @@ func (s *SimplexSolver) GetSolution2() (float64, map[string]float64) {
 	// interpret tableu
 	maxValue := rhs[1]
 
-	distribution := map[string]float64{}
-
-	for varName, index := range varPosMap {
-		if isBasic(tableu, index) {
-			selectedRow := getNonZeroRow(tableu, index)
-			distribution[varName] = rhs[selectedRow] / tableu[selectedRow][index]
-		} else {
-			distribution[varName] = 0
-		}
-	}
+	distribution := deriveDistribution(varPosMap, tableu, rhs)
 
 	return maxValue, distribution
 }
 
-func getNonZeroRow(tableu [][]float64, index int) int {
-	for i := 1; i < len(tableu); i++ {
-		if tableu[i][index] != 0 {
-			return i
-		}
-	}
-	panic("No non zero row present")
-}
+func deriveDistribution(varPosMap map[string]int, tableu [][]float64, rhs []float64) map[string]float64 {
+	distribution := map[string]float64{}
 
-func isBasic(tableu [][]float64, index int) bool {
-	nonZeroCount := 0
-	for i := 1; i < len(tableu); i++ {
-		if tableu[i][index] != 0 {
-			nonZeroCount++
+	basicColumnPositions := map[int][]string{}
+
+	for k, col := range varPosMap {
+		nonZeroRows := getNonZeroRows(tableu, col)
+		if len(nonZeroRows) == 1 {
+			basicColumnPositions[nonZeroRows[0]] = append(basicColumnPositions[nonZeroRows[0]], k)
+		} else {
+			distribution[k] = 0
 		}
 	}
 
-	return nonZeroCount == 1
+	for row, cols := range basicColumnPositions {
+		if len(cols) == 1 {
+			distribution[cols[0]] = rhs[row]
+		} else {
+			colValSum := 0.0
+			for _, col := range cols {
+				colValSum += tableu[row][varPosMap[col]]
+			}
+			for _, col := range cols {
+				distribution[col] = rhs[row] / colValSum
+			}
+		}
+	}
+
+	return distribution
 }
+
+func getNonZeroRows(tableu [][]float64, col int) (indices []int) {
+
+	for row, rowArr := range tableu {
+		if rowArr[col] != 0 {
+			indices = append(indices, row)
+		}
+	}
+	return
+}
+
+// func isBasic(tableu [][]float64, index int) bool {
+// 	nonZeroCount := 0
+// 	for i := 1; i < len(tableu); i++ {
+// 		if tableu[i][index] != 0 {
+// 			nonZeroCount++
+// 		}
+// 	}
+
+// 	return nonZeroCount == 1
+// }
 
 func maximizeObjeciveFunction(tableu [][]float64, rhs []float64) ([][]float64, []float64) {
 
