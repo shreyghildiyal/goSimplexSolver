@@ -1,5 +1,7 @@
 package simplexsolver
 
+const MINIMUM_DIFF float64 = 0.000000001
+
 func (s *SimplexSolver) GetSolution2() (float64, map[string]float64) {
 
 	// find all the variables in constraints and objective function
@@ -64,23 +66,12 @@ func deriveDistribution(varPosMap map[string]int, tableu [][]float64, rhs []floa
 func getNonZeroRows(tableu [][]float64, col int) (indices []int) {
 
 	for row, rowArr := range tableu {
-		if rowArr[col] != 0 {
+		if rowArr[col] > MINIMUM_DIFF || rowArr[col] < -MINIMUM_DIFF {
 			indices = append(indices, row)
 		}
 	}
 	return
 }
-
-// func isBasic(tableu [][]float64, index int) bool {
-// 	nonZeroCount := 0
-// 	for i := 1; i < len(tableu); i++ {
-// 		if tableu[i][index] != 0 {
-// 			nonZeroCount++
-// 		}
-// 	}
-
-// 	return nonZeroCount == 1
-// }
 
 func maximizeObjeciveFunction(tableu [][]float64, rhs []float64) ([][]float64, []float64) {
 
@@ -112,7 +103,7 @@ func minimizeArtificialVariables(tableu [][]float64, rhs []float64) ([][]float64
 		pivotRow := getPivotRow(tableu, rhs, pivotColumn)
 		tableu, rhs = reduce(tableu, rhs, pivotRow, pivotColumn)
 	}
-	if rhs[0] > 0 {
+	if rhs[0] > MINIMUM_DIFF {
 		panic("Seems we cant get rid of the artificial variables. No solution might exist")
 	}
 	return tableu, rhs
@@ -129,7 +120,7 @@ func reduce(tableu [][]float64, rhs []float64, pivotRow, pivotColumn int) ([][]f
 
 	for row := range tableu {
 		if row != pivotRow {
-			if tableu[row][pivotColumn] != 0 {
+			if tableu[row][pivotColumn] > MINIMUM_DIFF || tableu[row][pivotColumn] < -MINIMUM_DIFF {
 				multiplier := tableu[row][pivotColumn] / tableu[pivotRow][pivotColumn]
 				for col := range tableu[row] {
 					tableu[row][col] = tableu[row][col] - multiplier*tableu[pivotRow][col]
@@ -148,7 +139,7 @@ func getPivotRow(tableu [][]float64, rhs []float64, pivotColumn int) int {
 	var pivotVal float64 = 0
 	candidateFound := false
 	for row := 2; row < len(tableu); row++ {
-		if rhs[row] > 0 && tableu[row][pivotColumn] > 0 {
+		if rhs[row] > MINIMUM_DIFF && tableu[row][pivotColumn] > MINIMUM_DIFF {
 			v := rhs[row] / tableu[row][pivotColumn]
 			if !candidateFound {
 				pivotRow = row
@@ -178,7 +169,7 @@ func getPivotColumn(artificialRow []float64) int {
 
 func containsPositiveValue(row []float64) bool {
 	for _, v := range row {
-		if v > 0 {
+		if v > MINIMUM_DIFF {
 			return true
 		}
 	}
@@ -187,7 +178,7 @@ func containsPositiveValue(row []float64) bool {
 
 func containsNegativeValue(row []float64) bool {
 	for _, v := range row {
-		if v < 0 {
+		if v < -MINIMUM_DIFF {
 			return true
 		}
 	}

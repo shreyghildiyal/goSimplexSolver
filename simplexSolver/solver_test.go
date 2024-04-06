@@ -36,16 +36,20 @@ func TestSolver_GetSolution(t *testing.T) {
 		"y": 3.0,
 	}
 
+	doTest(constraints, objectiveFunc, expectedMax, t, expectedDistribution)
+}
+
+func doTest(constraints []Equation, objectiveFunc map[string]float64, expectedMax float64, t *testing.T, expectedDistribution map[string]float64) {
 	s := SimplexSolver{constraints: constraints, objectiveFunction: objectiveFunc}
 
 	max, vals := s.GetSolution2()
 
-	if max != expectedMax {
-		t.Error("max was incorrect")
+	if max-expectedMax > MINIMUM_DIFF || max-expectedMax < -MINIMUM_DIFF {
+		t.Errorf("max was incorrect. Expected %f, found %f. diff %f", expectedMax, max, expectedMax-max)
 	}
 	for k, v := range vals {
 		if ev, ok := expectedDistribution[k]; ok {
-			if ev != v {
+			if ev-v > MINIMUM_DIFF || ev-v < -MINIMUM_DIFF {
 				t.Errorf("The value for %s is incorrect. Expected %f, found %f", k, expectedDistribution[k], v)
 			}
 		} else {
@@ -86,20 +90,48 @@ func TestSolver_GetSolution2(t *testing.T) {
 		"y": 5.0,
 	}
 
-	s := SimplexSolver{constraints: constraints, objectiveFunction: objectiveFunc}
+	doTest(constraints, objectiveFunc, expectedMax, t, expectedDistribution)
+}
 
-	max, vals := s.GetSolution2()
+func TestSolver_GetSolutionGTE(t *testing.T) {
 
-	if max != expectedMax {
-		t.Error("max was incorrect")
+	constraints := []Equation{
+		{
+			rhs: 2,
+			lhs: map[string]float64{
+				"x": 1,
+				"y": 2,
+			},
+			comparator: GTE,
+		},
+		{
+			rhs: 5,
+			lhs: map[string]float64{
+				"x": -4,
+				"y": 5,
+			},
+			comparator: LTE,
+		},
+		{
+			rhs: 5,
+			lhs: map[string]float64{
+				"x": 5,
+				"y": -4,
+			},
+			comparator: LTE,
+		},
 	}
-	for k, v := range vals {
-		if ev, ok := expectedDistribution[k]; ok {
-			if ev != v {
-				t.Errorf("The value for %s is incorrect. Expected %f, found %f", k, expectedDistribution[k], v)
-			}
-		} else {
-			t.Errorf("Resultant distribution contains variable %s but it is not present in expected distribution", k)
-		}
+
+	objectiveFunc := map[string]float64{
+		"x": 1,
+		"y": 1,
 	}
+
+	expectedMax := 10.0
+	expectedDistribution := map[string]float64{
+		"x": 5.0,
+		"y": 5.0,
+	}
+
+	doTest(constraints, objectiveFunc, expectedMax, t, expectedDistribution)
 }
