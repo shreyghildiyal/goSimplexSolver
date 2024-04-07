@@ -1,8 +1,10 @@
 package simplexsolver
 
+import "errors"
+
 const MINIMUM_DIFF float64 = 0.000000001
 
-func (s *SimplexSolver) GetSolution2() (float64, map[string]float64) {
+func (s *SimplexSolver) GetSolution2() (float64, map[string]float64, error) {
 
 	// find all the variables in constraints and objective function
 	varPosMap := s.GetVarPosMap()
@@ -14,14 +16,20 @@ func (s *SimplexSolver) GetSolution2() (float64, map[string]float64) {
 	//		1 row per gte
 	// 		2 rows per equality
 	tableu, rhs := s.GetBasicTableu2(varPosMap)
-
+	var err error
 	// do phase 1 of 2 phase simplex if needed
 	if containsPositiveValue(tableu[0]) {
-		tableu, rhs = minimizeArtificialVariables(tableu, rhs)
+		tableu, rhs, err = minimizeArtificialVariables(tableu, rhs)
+		if err != nil {
+			return 0, nil, err
+		}
 	}
 	// do phase 2 of 2
 	if containsNegativeValue(tableu[1]) {
-		tableu, rhs = maximizeObjeciveFunction(tableu, rhs)
+		tableu, rhs, err = maximizeObjeciveFunction(tableu, rhs)
+		if err != nil {
+			return -1, nil, err
+		}
 	}
 
 	// interpret tableu
@@ -29,7 +37,7 @@ func (s *SimplexSolver) GetSolution2() (float64, map[string]float64) {
 
 	distribution := deriveDistribution(varPosMap, tableu, rhs)
 
-	return maxValue, distribution
+	return maxValue, distribution, nil
 }
 
 func deriveDistribution(varPosMap map[string]int, tableu [][]float64, rhs []float64) map[string]float64 {
@@ -73,15 +81,18 @@ func getNonZeroRows(tableu [][]float64, col int) (indices []int) {
 	return
 }
 
-func maximizeObjeciveFunction(tableu [][]float64, rhs []float64) ([][]float64, []float64) {
+func maximizeObjeciveFunction(tableu [][]float64, rhs []float64) ([][]float64, []float64, error) {
 
 	for containsNegativeValue(tableu[1]) {
 		pivotColumn := getNegPivotColumn(tableu[1])
-		pivotRow := getPivotRow(tableu, rhs, pivotColumn)
+		pivotRow, err := getPivotRow(tableu, rhs, pivotColumn)
+		if err != nil {
+			return nil, nil, err
+		}
 		tableu, rhs = reduce(tableu, rhs, pivotRow, pivotColumn)
 	}
 
-	return tableu, rhs
+	return tableu, rhs, nil
 }
 
 func getNegPivotColumn(objectiuveRow []float64) int {
@@ -96,17 +107,21 @@ func getNegPivotColumn(objectiuveRow []float64) int {
 	return pivotColumn
 }
 
-func minimizeArtificialVariables(tableu [][]float64, rhs []float64) ([][]float64, []float64) {
+func minimizeArtificialVariables(tableu [][]float64, rhs []float64) ([][]float64, []float64, error) {
 
 	for containsPositiveValue(tableu[0]) {
 		pivotColumn := getPivotColumn(tableu[0])
-		pivotRow := getPivotRow(tableu, rhs, pivotColumn)
+		pivotRow, err := getPivotRow(tableu, rhs, pivotColumn)
+		if err != nil {
+			return nil, nil, err
+		}
 		tableu, rhs = reduce(tableu, rhs, pivotRow, pivotColumn)
 	}
 	if rhs[0] > MINIMUM_DIFF {
-		panic("Seems we cant get rid of the artificial variables. No solution might exist")
+		// panic("Seems we cant get rid of the artificial variables. No solution might exist")
+		return tableu, rhs, errors.New("seems we cant get rid of the artificial variables. no solution might exist")
 	}
-	return tableu, rhs
+	return tableu, rhs, nil
 }
 
 func reduce(tableu [][]float64, rhs []float64, pivotRow, pivotColumn int) ([][]float64, []float64) {
@@ -133,7 +148,7 @@ func reduce(tableu [][]float64, rhs []float64, pivotRow, pivotColumn int) ([][]f
 	return tableu, rhs
 }
 
-func getPivotRow(tableu [][]float64, rhs []float64, pivotColumn int) int {
+func getPivotRow(tableu [][]float64, rhs []float64, pivotColumn int) (int, error) {
 
 	pivotRow := 2
 	var pivotVal float64 = 0
@@ -152,7 +167,12 @@ func getPivotRow(tableu [][]float64, rhs []float64, pivotColumn int) int {
 
 		}
 	}
-	return pivotRow
+	if !candidateFound {
+		return -1, errors.New("no valid candidate row found")
+	} else {
+		return pivotRow, nil
+	}
+
 }
 
 func getPivotColumn(artificialRow []float64) int {
