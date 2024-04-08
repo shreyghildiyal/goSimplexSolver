@@ -42,7 +42,11 @@ func TestSolver_GetSolution(t *testing.T) {
 func doTest(constraints []Equation, objectiveFunc map[string]float64, expectedMax float64, t *testing.T, expectedDistribution map[string]float64) {
 	s := SimplexSolver{constraints: constraints, objectiveFunction: objectiveFunc}
 
-	max, vals := s.GetSolution2()
+	max, vals, err := s.GetSolution2()
+
+	if err != nil {
+		t.Errorf("Get Solution threw an error")
+	}
 
 	if max-expectedMax > MINIMUM_DIFF || max-expectedMax < -MINIMUM_DIFF {
 		t.Errorf("max was incorrect. Expected %f, found %f. diff %f", expectedMax, max, expectedMax-max)
@@ -134,4 +138,80 @@ func TestSolver_GetSolutionGTE(t *testing.T) {
 	}
 
 	doTest(constraints, objectiveFunc, expectedMax, t, expectedDistribution)
+}
+
+func TestSolver_GetSolutionNoSolution(t *testing.T) {
+
+	constraints := []Equation{
+		{
+			rhs: 20,
+			lhs: map[string]float64{
+				"x": 1,
+				"y": 2,
+			},
+			comparator: GTE,
+		},
+		{
+			rhs: 5,
+			lhs: map[string]float64{
+				"x": -4,
+				"y": 5,
+			},
+			comparator: LTE,
+		},
+		{
+			rhs: 5,
+			lhs: map[string]float64{
+				"x": 5,
+				"y": -4,
+			},
+			comparator: LTE,
+		},
+	}
+
+	objectiveFunc := map[string]float64{
+		"x": 1,
+		"y": 1,
+	}
+
+	// expectedMax := 10.0
+	// expectedDistribution := map[string]float64{
+	// 	"x": 5.0,
+	// 	"y": 5.0,
+	// }
+
+	s := SimplexSolver{constraints: constraints, objectiveFunction: objectiveFunc}
+
+	_, _, err := s.GetSolution2()
+
+	if err == nil {
+		t.Errorf("Get Solution did not throw an error")
+	}
+}
+
+func TestSolver_GetSolutionNoSolution2(t *testing.T) {
+
+	constraints := []Equation{
+
+		{
+			rhs: 5,
+			lhs: map[string]float64{
+				"x": 1,
+			},
+			comparator: LTE,
+		},
+	}
+
+	objectiveFunc := map[string]float64{
+		"x": 1,
+		"y": 1,
+	}
+
+	s := SimplexSolver{constraints: constraints, objectiveFunction: objectiveFunc}
+
+	_, _, err := s.GetSolution2()
+
+	if err == nil {
+		t.Errorf("Get Solution did not throw an error")
+	}
 }
